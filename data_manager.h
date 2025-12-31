@@ -3,7 +3,8 @@
 
 #include "structure.h"
 
-int load_data_dapur(const char* filename, Dapur list[], int max);
-int load_data_sekolah(const char* filename, Sekolah list[], int max);
+// Fungsi baca file CSV
+int baca_dapur(char* nama_file, Dapur data[], int max);
+int baca_sekolah(char* nama_file, Sekolah data[], int max);
 
 #endif

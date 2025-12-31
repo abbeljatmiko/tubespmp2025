@@ -4,86 +4,82 @@
 #include "structure.h"
 #include "scheduler.h"
 
-// Fungsi Hitung Jarak (Euclidean dengan Faktor Konversi KM)
-double hitung_jarak(double lat1, double lon1, double lat2, double lon2) {
-    if (lat1 == 0 || lat2 == 0) return 0.0;
-
-    // 1 Derajat Lat/Long ~= 111.32 KM di sekitar Ekuator
-    double dLat = (lat1 - lat2) * 111.32;
-    double dLon = (lon1 - lon2) * 111.32;
-    
-    double jarak = sqrt((dLat * dLat) + (dLon * dLon));
-    return jarak;
+// Fungsi hitung jarak sederhana (dalam KM)
+double get_jarak(double lat1, double lon1, double lat2, double lon2) {
+    // Konversi kasar: 1 derajat = 111.32 km
+    double dy = (lat1 - lat2) * 111.32;
+    double dx = (lon1 - lon2) * 111.32;
+    return sqrt((dx * dx) + (dy * dy));
 }
 
-void jalankan_penjadwalan(Dapur dapurs[], int n_dapur, Sekolah sekolahs[], int n_sekolah) {
-    FILE *f_out = fopen("jadwal_distribusi.csv", "w");
-    if (f_out) fprintf(f_out, "Hari,Sekolah,Dapur_Pemasok,Jenis,Qty,Jarak_Km,Status\n");
+void proses_jadwal(Dapur d_list[], int nd, Sekolah s_list[], int ns) {
+    // Buka file output
+    FILE *fout = fopen("jadwal_distribusi.csv", "w");
+    fprintf(fout, "Hari,Sekolah,Pemasok,Jarak,Status\n");
 
-    int total_sukses = 0;
-    int total_gagal = 0;
+    int hari, s, d;
+    int sukses = 0, gagal = 0;
 
-    printf("\n=== MULAI SIMULASI PENJADWALAN (5 HARI) ===\n");
+    printf("\n--- Memulai Penjadwalan ---\n");
 
-    for (int hari = 0; hari < 5; hari++) {
-        printf("\n--- HARI KE-%d ---\n", hari + 1);
-        
+    // Loop Senin (0) sampai Jumat (4)
+    for (hari = 0; hari < 5; hari++) {
+        printf("Hari ke-%d:\n", hari + 1);
+
         // Reset kapasitas harian dapur
-        for(int d=0; d<n_dapur; d++) {
-            dapurs[d].sisa_kapasitas[hari] = dapurs[d].kapasitas_harian;
+        for (d = 0; d < nd; d++) {
+            d_list[d].sisa[hari] = d_list[d].kap_max;
         }
 
-        for (int s = 0; s < n_sekolah; s++) {
-            // Jika hari sebelumnya sudah terpenuhi (opsional logic), kita reset status di load_data
-            // Tapi di sini asumsinya setiap hari butuh makan.
-            
-            double min_dist = 999999.0;
-            int best_dapur = -1;
+        // Cek setiap sekolah
+        for (s = 0; s < ns; s++) {
+            int target_dapur = -1;
+            double jarak_min = 99999.0; // Set angka besar
 
-            for (int d = 0; d < n_dapur; d++) {
-                // 1. Cek Jenis Makanan (String Compare)
-                if (strcmp(dapurs[d].jenis_makanan, sekolahs[s].jenis_kebutuhan) != 0) continue;
+            // Cari dapur yang cocok
+            for (d = 0; d < nd; d++) {
+                // 1. Cek jenis makanan
+                if (strcmp(d_list[d].jenis, s_list[s].jenis) != 0) continue;
 
-                // 2. Cek Kapasitas
-                if (dapurs[d].sisa_kapasitas[hari] < sekolahs[s].kebutuhan_harian) continue;
+                // 2. Cek stok dapur
+                if (d_list[d].sisa[hari] < s_list[s].butuh) continue;
 
-                // 3. Hitung Jarak
-                double dist = hitung_jarak(dapurs[d].latitude, dapurs[d].longitude, 
-                                           sekolahs[s].latitude, sekolahs[s].longitude);
+                // 3. Hitung jarak
+                double jarak = get_jarak(d_list[d].lat, d_list[d].lon, 
+                                         s_list[s].lat, s_list[s].lon);
 
-                // 4. Cek Radius Maksimal
-                if (dist > dapurs[d].jarak_maks) continue;
+                // 4. Cek radius maksimal dapur
+                if (jarak > d_list[d].rad_max) continue;
 
-                // Greedy: Pilih yang terdekat
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    best_dapur = d;
+                // Ambil yang paling dekat
+                if (jarak < jarak_min) {
+                    jarak_min = jarak;
+                    target_dapur = d;
                 }
             }
 
-            if (best_dapur != -1) {
-                dapurs[best_dapur].sisa_kapasitas[hari] -= sekolahs[s].kebutuhan_harian;
-                sekolahs[s].status_pemenuhan[hari] = 1;
-                total_sukses++;
+            // Simpan hasil
+            if (target_dapur != -1) {
+                // Kurangi stok dapur
+                d_list[target_dapur].sisa[hari] -= s_list[s].butuh;
+                s_list[s].status[hari] = 1;
+                sukses++;
 
-                printf("[SUKSES] %-15s <-- %-15s (Jarak: %.2f km)\n", 
-                       sekolahs[s].nama, dapurs[best_dapur].nama, min_dist);
+                printf("  [OK] %s <- %s (%.2f km)\n", 
+                       s_list[s].nama, d_list[target_dapur].nama, jarak_min);
                 
-                if (f_out) fprintf(f_out, "%d,%s,%s,%s,%d,%.2f,Sukses\n", 
-                        hari+1, sekolahs[s].nama, dapurs[best_dapur].nama, 
-                        sekolahs[s].jenis_kebutuhan, sekolahs[s].kebutuhan_harian, min_dist);
+                fprintf(fout, "%d,%s,%s,%.2f,Sukses\n", 
+                        hari+1, s_list[s].nama, d_list[target_dapur].nama, jarak_min);
             } else {
-                total_gagal++;
-                printf("[GAGAL]  %-15s : Tidak ada pemasok cocok!\n", sekolahs[s].nama);
-                if (f_out) fprintf(f_out, "%d,%s,NONE,%s,%d,0,Gagal\n", 
-                        hari+1, sekolahs[s].nama, sekolahs[s].jenis_kebutuhan, sekolahs[s].kebutuhan_harian);
+                gagal++;
+                printf("  [FAIL] %s tidak dapat pasokan.\n", s_list[s].nama);
+                fprintf(fout, "%d,%s,NONE,0,Gagal\n", 
+                        hari+1, s_list[s].nama);
             }
         }
     }
 
-    if (f_out) fclose(f_out);
-    
-    printf("\n=== RINGKASAN ===\n");
-    printf("Sukses: %d | Gagal: %d\n", total_sukses, total_gagal);
-    printf("File CSV Export: jadwal_distribusi.csv\n");
+    fclose(fout);
+    printf("\nSelesai. Total Sukses: %d, Gagal: %d\n", sukses, gagal);
+    printf("Hasil disimpan di 'jadwal_distribusi.csv'\n");
 }

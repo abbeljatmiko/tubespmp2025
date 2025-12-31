@@ -1,31 +1,34 @@
 #ifndef STRUCTURE_H
 #define STRUCTURE_H
 
-#define MAX_NAME 100
-#define MAX_ITEMS 100
+// Definisi konstanta ukuran
+#define MAX_CHAR 100
+#define MAX_DATA 100
 
+// Struct untuk Dapur
 typedef struct {
-    char nama[MAX_NAME];
-    double latitude;      // Wajib double
-    double longitude;     // Wajib double
-    char jenis_makanan[50];
-    int kapasitas_harian;
-    double jarak_maks;
+    char nama[MAX_CHAR];
+    double lat;     // Latitude
+    double lon;     // Longitude
+    char jenis[50];
+    int kap_max;    // Kapasitas harian
+    double rad_max; // Radius
     
-    // Helper untuk 5 hari
-    int sisa_kapasitas[5]; 
+    // Sisa stok per hari (0=Senin, 4=Jumat)
+    int sisa[5]; 
 } Dapur;
 
+// Struct untuk Sekolah
 typedef struct {
-    char nama[MAX_NAME];
-    double latitude;      // Wajib double
-    double longitude;     // Wajib double
-    int kebutuhan_harian;
-    char jenis_kebutuhan[50];
-    int kapasitas_simpan;
+    char nama[MAX_CHAR];
+    double lat;
+    double lon;
+    int butuh;      // Kebutuhan harian
+    char jenis[50]; // Jenis makanan yg diminta
+    int kap_simpan; 
     
-    // Helper status (0: Belum, 1: Sudah)
-    int status_pemenuhan[5]; 
+    // Status kirim per hari (0=Belum, 1=Sudah)
+    int status[5]; 
 } Sekolah;
 
 #endif

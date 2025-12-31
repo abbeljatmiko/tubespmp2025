@@ -3,6 +3,6 @@
 
 #include "structure.h"
 
-void jalankan_penjadwalan(Dapur dapurs[], int n_dapur, Sekolah sekolahs[], int n_sekolah);
+void proses_jadwal(Dapur d[], int n_dapur, Sekolah s[], int n_sekolah);
 
 #endif
